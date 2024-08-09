@@ -8,18 +8,42 @@ module iob_nco #(
     `include "iob_nco_io.vs"
 );
 
+  localparam PERIOD_W = 32;
+
   wire [     DATA_W-1:0] period_r;
   wire [     DATA_W-1:0] diff;
   wire [DATA_W-1:FRAC_W] cnt;
   wire [DATA_W-1:0] acc_in, acc_out;
   wire clk_int;
 
-  //Dummy iob_ready_nxt_o and iob_rvalid_nxt_o to be used in swreg (unused ports)
-  wire iob_ready_nxt;
-  wire iob_rvalid_nxt;
+  wire soft_reset;
+  wire enable;
+  wire [PERIOD_W-1:0] period_wdata;
+  wire period_wen;
 
   //BLOCK Register File & Configuration, control and status registers accessible by the sofware
   `include "iob_nco_swreg_inst.vs"
+
+   iob_nco_sync #(
+    .PERIOD_W(PERIOD_W)
+   ) nco_sync_inst (
+    .clk_i(clk_i),
+    .cke_i(cke_i),
+    .arst_i(arst_i),
+
+    .clk_in_i(clk_in_i),
+
+    .soft_reset_i(SOFT_RESET_wr),
+    .enable_i(ENABLE_wr),
+    .period_wdata_i(PERIOD_wdata_wr),
+    .period_wen_i(PERIOD_wen_wr),
+
+    .soft_reset_o(soft_reset),
+    .enable_o(enable),
+    .period_wdata_o(period_wdata),
+    .period_wen_o(period_wen)
+   );
+
 
   // PERIOD Manual logic
   assign PERIOD_wready_wr = 1'b1;
@@ -40,10 +64,12 @@ module iob_nco #(
   iob_reg_re #(
       .DATA_W(DATA_W)
   ) per_reg (
-      `include "clk_en_rst_s_s_portmap.vs"
-      .rst_i (SOFT_RESET_wr),
-      .en_i  (PERIOD_wen_wr),
-      .data_i(PERIOD_wdata_wr),
+      .clk_i (clk_in_i),
+      .cke_i (cke_i),
+      .arst_i(arst_i),
+      .rst_i (soft_reset),
+      .en_i  (period_wen),
+      .data_i(period_wdata),
       .data_o(period_r)
   );
 
@@ -51,24 +77,29 @@ module iob_nco #(
   iob_reg_re #(
       .DATA_W(1)
   ) clk_out_reg (
-      `include "clk_en_rst_s_s_portmap.vs"
-      .rst_i (SOFT_RESET_wr),
-      .en_i  (ENABLE_wr),
+      .clk_i (clk_in_i),
+      .cke_i (cke_i),
+      .arst_i(arst_i),
+      .rst_i (soft_reset),
+      .en_i  (enable),
       .data_i(clk_int),
-      .data_o(clk_o)
+      .data_o(clk_out_o)
   );
 
   //modulator accumulator
   iob_acc_ld #(
       .DATA_W(DATA_W)
   ) acc_ld (
-      `include "clk_en_rst_s_s_portmap.vs"
-      .rst_i(SOFT_RESET_wr),
-      .en_i(ENABLE_wr),
-      .ld_i(PERIOD_wen_wr),
-      .ld_val_i(PERIOD_wdata_wr),
+      .clk_i (clk_in_i),
+      .cke_i (cke_i),
+      .arst_i(arst_i),
+      .rst_i(soft_reset),
+      .en_i(enable),
+      .ld_i(period_wen),
+      .ld_val_i(period_wdata),
       .incr_i(diff),
-      .data_o(acc_out)
+      .data_o(acc_out),
+      .data_nxt_o()
   );
 
 
@@ -76,9 +107,11 @@ module iob_nco #(
   iob_modcnt #(
       .DATA_W(DATA_W - FRAC_W)
   ) modcnt (
-      `include "clk_en_rst_s_s_portmap.vs"
-      .rst_i (PERIOD_wen_wr),
-      .en_i  (ENABLE_wr),
+      .clk_i (clk_in_i),
+      .cke_i (cke_i),
+      .arst_i(arst_i),
+      .rst_i (period_wen),
+      .en_i  (enable),
       .mod_i (quant),
       .data_o(cnt)
   );

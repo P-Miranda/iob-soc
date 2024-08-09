@@ -9,6 +9,7 @@ from iob_reg import iob_reg
 from iob_modcnt import iob_modcnt
 from iob_acc_ld import iob_acc_ld
 from iob_utils import iob_utils
+from iob_sync import iob_sync
 
 
 class iob_nco(iob_module):
@@ -25,6 +26,7 @@ class iob_nco(iob_module):
                 iob_reg,
                 iob_modcnt,
                 iob_acc_ld,
+                iob_sync,
                 # simulation files
                 (iob_utils, {"purpose": "simulation"}),
                 (iob_tasks, {"purpose": "simulation"}),
@@ -77,10 +79,16 @@ class iob_nco(iob_module):
             {"name": "iob_s_port", "descr": "CPU native interface", "ports": []},
             {
                 "name": "clk_gen",
-                "descr": "Output generated clock interface",
+                "descr": "Generated clock interface",
                 "ports": [
                     {
-                        "name": "clk_o",
+                        "name": "clk_in_i",
+                        "type": "O",
+                        "n_bits": "1",
+                        "descr": "Clock input",
+                    },
+                    {
+                        "name": "clk_out_o",
                         "type": "O",
                         "n_bits": "1",
                         "descr": "Generated clock output",
